@@ -1,5 +1,6 @@
-from typing import List, Optional
-from sqlalchemy import select, update, delete
+from typing import List, Optional, Tuple
+from sqlalchemy import select, delete, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.entities.product import Product
@@ -18,7 +19,7 @@ class SQLAlchemyProductRepository(ProductRepository):
             description=model.description,
             price=model.price,
             stock=model.stock,
-            category=model.category,
+            category_id=model.category_id,
             created_at=model.created_at,
             updated_at=model.updated_at
         )
@@ -29,49 +30,67 @@ class SQLAlchemyProductRepository(ProductRepository):
             description=product.description,
             price=product.price,
             stock=product.stock,
-            category=product.category
+            category_id=product.category_id
         )
         self.session.add(db_model)
-        await self.session.flush()
-        await self.session.refresh(db_model)
-        return self._to_entity(db_model)
+        await self.session.commit()
+        return await self.get_by_id(db_model.id)
 
     async def get_by_id(self, product_id: int) -> Optional[Product]:
-        query = select(ProductModel).where(ProductModel.id == product_id)
+        query = select(ProductModel).options(selectinload(ProductModel.category_rel)).where(ProductModel.id == product_id)
         result = await self.session.execute(query)
         db_model = result.scalar_one_or_none()
         if db_model:
-            return self._to_entity(db_model)
+            entity = self._to_entity(db_model)
+            # Attach category object for presentation layer if loaded
+            if db_model.category_rel:
+                setattr(entity, "category", db_model.category_rel)
+            return entity
         return None
 
-    async def list_all(self, skip: int = 0, limit: int = 10, category: Optional[str] = None) -> List[Product]:
-        query = select(ProductModel)
-        if category:
-            query = query.where(ProductModel.category == category)
+    async def list_all(self, skip: int = 0, limit: int = 10, category_id: Optional[int] = None) -> Tuple[List[Product], int]:
+        query = select(ProductModel).options(selectinload(ProductModel.category_rel))
+        count_query = select(func.count(ProductModel.id))
+
+        if category_id:
+            query = query.where(ProductModel.category_id == category_id)
+            count_query = count_query.where(ProductModel.category_id == category_id)
+
         query = query.offset(skip).limit(limit)
-        
+
         result = await self.session.execute(query)
         db_models = result.scalars().all()
-        return [self._to_entity(m) for m in db_models]
+
+        total_res = await self.session.execute(count_query)
+        total = total_res.scalar_one()
+
+        entities = []
+        for m in db_models:
+            e = self._to_entity(m)
+            if m.category_rel:
+                setattr(e, "category", m.category_rel)
+            entities.append(e)
+
+        return entities, total
 
     async def update(self, product: Product) -> Product:
         query = select(ProductModel).where(ProductModel.id == product.id)
         result = await self.session.execute(query)
         db_model = result.scalar_one_or_none()
-        
+
         if db_model:
             db_model.name = product.name
             db_model.description = product.description
             db_model.price = product.price
             db_model.stock = product.stock
-            db_model.category = product.category
-            
-            await self.session.flush()
-            await self.session.refresh(db_model)
-            return self._to_entity(db_model)
+            db_model.category_id = product.category_id
+
+            await self.session.commit()
+            return await self.get_by_id(db_model.id)
         raise ValueError(f"Product with id {product.id} does not exist in database")
 
     async def delete(self, product_id: int) -> bool:
         stmt = delete(ProductModel).where(ProductModel.id == product_id)
         result = await self.session.execute(stmt)
+        await self.session.commit()
         return result.rowcount > 0

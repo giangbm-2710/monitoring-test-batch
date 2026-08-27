@@ -37,7 +37,7 @@ async def create_product(
             description=payload.description,
             price=payload.price,
             stock=payload.stock,
-            category=payload.category
+            category_id=payload.category_id
         )
         return product
     except InvalidProductDataException as e:
@@ -60,13 +60,13 @@ async def get_product(
 async def list_products(
     skip: int = Query(0, ge=0, description="Items to skip"),
     limit: int = Query(10, ge=1, le=100, description="Items to limit"),
-    category: Optional[str] = Query(None, description="Filter by category"),
+    category_id: Optional[int] = Query(None, description="Filter by category ID"),
     use_case: ListProductsUseCase = Depends(get_list_products_use_case)
 ):
     """List products with pagination and category filter."""
-    products = await use_case.execute(skip=skip, limit=limit, category=category)
+    products, total = await use_case.execute(skip=skip, limit=limit, category_id=category_id)
     return ProductListResponse(
-        total=len(products),
+        total=total,
         items=[ProductResponse.model_validate(p) for p in products]
     )
 
@@ -85,7 +85,7 @@ async def update_product(
             description=payload.description,
             price=payload.price,
             stock=payload.stock,
-            category=payload.category
+            category_id=payload.category_id
         )
     except ProductNotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

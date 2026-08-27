@@ -1,5 +1,6 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, func
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, func
+from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 class ProductModel(Base):
@@ -10,6 +11,8 @@ class ProductModel(Base):
     description = Column(Text, nullable=True)
     price = Column(Float, nullable=False)
     stock = Column(Integer, nullable=False, default=0)
-    category = Column(String(100), nullable=False, index=True)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    category_rel = relationship("CategoryModel", back_populates="products")
