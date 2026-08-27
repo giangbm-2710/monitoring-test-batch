@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from app.domain.entities.product import Product
 
 class ProductRepository(ABC):
@@ -14,7 +14,7 @@ class ProductRepository(ABC):
         pass
 
     @abstractmethod
-    async def list_all(self, skip: int = 0, limit: int = 10, category: Optional[str] = None) -> List[Product]:
+    async def list_all(self, skip: int = 0, limit: int = 10, category_id: Optional[int] = None) -> Tuple[List[Product], int]:
         """List products with pagination and filtering."""
         pass
 

@@ -9,7 +9,7 @@ class Product:
     description: Optional[str]
     price: float
     stock: int
-    category: str
+    category_id: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

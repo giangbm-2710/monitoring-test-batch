@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from app.domain.entities.product import Product
 from app.domain.repositories.product_repository import ProductRepository
 from app.domain.exceptions.product_exceptions import ProductNotFoundException, InvalidProductDataException
@@ -7,14 +7,14 @@ class CreateProductUseCase:
     def __init__(self, repository: ProductRepository):
         self.repository = repository
 
-    async def execute(self, name: str, price: float, stock: int, category: str, description: Optional[str] = None) -> Product:
+    async def execute(self, name: str, price: float, stock: int, category_id: Optional[int] = None, description: Optional[str] = None) -> Product:
         product = Product(
             id=None,
             name=name,
             description=description,
             price=price,
             stock=stock,
-            category=category
+            category_id=category_id
         )
         try:
             product.validate()
@@ -39,8 +39,8 @@ class ListProductsUseCase:
     def __init__(self, repository: ProductRepository):
         self.repository = repository
 
-    async def execute(self, skip: int = 0, limit: int = 10, category: Optional[str] = None) -> List[Product]:
-        return await self.repository.list_all(skip=skip, limit=limit, category=category)
+    async def execute(self, skip: int = 0, limit: int = 10, category_id: Optional[int] = None) -> Tuple[List[Product], int]:
+        return await self.repository.list_all(skip=skip, limit=limit, category_id=category_id)
 
 
 class UpdateProductUseCase:
@@ -54,7 +54,7 @@ class UpdateProductUseCase:
         description: Optional[str] = None,
         price: Optional[float] = None,
         stock: Optional[int] = None,
-        category: Optional[str] = None
+        category_id: Optional[int] = None
     ) -> Product:
         existing_product = await self.repository.get_by_id(product_id)
         if not existing_product:
@@ -66,7 +66,7 @@ class UpdateProductUseCase:
             description=description if description is not None else existing_product.description,
             price=price if price is not None else existing_product.price,
             stock=stock if stock is not None else existing_product.stock,
-            category=category if category is not None else existing_product.category,
+            category_id=category_id if category_id is not None else existing_product.category_id,
             created_at=existing_product.created_at,
             updated_at=existing_product.updated_at
         )
