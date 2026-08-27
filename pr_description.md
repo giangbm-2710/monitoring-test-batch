@@ -1,48 +1,64 @@
 # PR Title
-`feat(user): Thêm API danh sách và chi tiết User (List & Get User API)`
+`feat(category,product): Thêm module quản lý Danh mục (Category) và tích hợp liên kết Sản phẩm (Product)`
 
 ---
 
 # PR Description (Mô tả Pull Request)
 
 ## 📌 Summary
-PR này bổ sung tính năng quản lý người dùng (User Management) theo kiến trúc Clean Architecture cho ứng dụng FastAPI, bao gồm các API lấy danh sách người dùng (`GET /api/v1/users`) và lấy chi tiết người dùng theo ID (`GET /api/v1/users/{user_id}`).
+PR này thực hiện 2 nhiệm vụ chính:
+1. **Thêm mới module Quản lý Danh mục (Category Management)** bao gồm đầy đủ CRUD (Create, Read, Update, Delete) theo kiến trúc Clean Architecture.
+2. **Cập nhật module Sản phẩm (Product Management)**: Chuyển đổi thuộc tính `category` (dạng string) sang khóa ngoại `category_id` liên kết trực tiếp với bảng `Category`, đồng thời hỗ trợ nạp thông tin danh mục tương ứng khi lấy chi tiết sản phẩm.
 
 ---
 
 ## 🛠️ Key Changes
-### 1. Domain Layer
-- `app/domain/entities/user.py`: Định nghĩa entity `User`.
-- `app/domain/exceptions/user_exceptions.py`: Định nghĩa các ngoại lệ `UserNotFoundException` và `UserAlreadyExistsException`.
-- `app/domain/repositories/user_repository.py`: Interface `UserRepository` trừu tượng.
 
-### 2. Infrastructure Layer
-- `app/infrastructure/db/models/user_model.py`: Mẫu bảng `UserModel` với SQLAlchemy.
-- `app/infrastructure/db/repositories/user_repository_impl.py`: Cài đặt `SQLAlchemyUserRepository` thực thi các truy vấn DB.
+### 1. New Feature: Category Management Module
+- **Domain Layer**:
+  - [`app/domain/entities/category.py`](file:///d:/monitoring-tool/monitoring-test-batch/app/domain/entities/category.py): Định nghĩa entity `Category` với các quy tắc kiểm tra tính hợp lệ (`validate`).
+  - [`app/domain/exceptions/category_exceptions.py`](file:///d:/monitoring-tool/monitoring-test-batch/app/domain/exceptions/category_exceptions.py): Định nghĩa các ngoại lệ `CategoryNotFoundException` và `CategoryAlreadyExistsException`.
+  - [`app/domain/repositories/category_repository.py`](file:///d:/monitoring-tool/monitoring-test-batch/app/domain/repositories/category_repository.py): Interface `CategoryRepository` trừu tượng cho thao tác lưu trữ danh mục.
+- **Infrastructure Layer**:
+  - [`app/infrastructure/db/models/category_model.py`](file:///d:/monitoring-tool/monitoring-test-batch/app/infrastructure/db/models/category_model.py): Model SQLAlchemy `CategoryModel` cho bảng `categories`.
+  - [`app/infrastructure/db/repositories/category_repository_impl.py`](file:///d:/monitoring-tool/monitoring-test-batch/app/infrastructure/db/repositories/category_repository_impl.py): Cài đặt `SQLAlchemyCategoryRepository` thực thi CRUD dữ liệu với SQLAlchemy Async Session.
+- **Use Cases Layer**:
+  - [`app/use_cases/category_use_cases.py`](file:///d:/monitoring-tool/monitoring-test-batch/app/use_cases/category_use_cases.py): Triển khai các Use Cases `CreateCategoryUseCase`, `GetCategoryUseCase`, `ListCategoriesUseCase`, `UpdateCategoryUseCase`, `DeleteCategoryUseCase`.
+- **Presentation & API Layer**:
+  - [`app/presentation/schemas/category_schema.py`](file:///d:/monitoring-tool/monitoring-test-batch/app/presentation/schemas/category_schema.py): Pydantic models `CategoryCreate`, `CategoryUpdate`, `CategoryResponse`, `CategoryListResponse`.
+  - [`app/presentation/api/v1/endpoints/category_router.py`](file:///d:/monitoring-tool/monitoring-test-batch/app/presentation/api/v1/endpoints/category_router.py): Khai báo 5 endpoints chính cho danh mục (`GET`, `POST`, `PUT`, `DELETE`).
+  - [`app/presentation/api/v1/dependencies.py`](file:///d:/monitoring-tool/monitoring-test-batch/app/presentation/api/v1/dependencies.py): Bổ sung Dependency Injection cho Category Repository và Use Cases.
+  - [`app/presentation/api/v1/router.py`](file:///d:/monitoring-tool/monitoring-test-batch/app/presentation/api/v1/router.py): Tích hợp `category_router` vào router chính `/v1`.
 
-### 3. Use Cases Layer
-- `app/use_cases/user_use_cases.py`: Lớp xử lý logic nghiệp vụ `ListUsersUseCase` và `GetUserUseCase`.
+---
 
-### 4. Presentation & API Layer
-- `app/presentation/schemas/user_schema.py`: Định nghĩa Pydantic models `UserBase`, `UserCreate`, `UserResponse`.
-- `app/presentation/api/v1/endpoints/user_router.py`: Đăng ký các endpoints `GET /users` và `GET /users/{user_id}`.
-- `app/presentation/api/v1/dependencies.py`: Cấu hình Dependency Injection cho UserRepository & UseCases.
-- `app/presentation/api/v1/router.py`: Thêm `user_router` vào `api_router` chính của `/v1`.
+### 2. Refactoring & Enhancements: Product Module Integration
+- **Relational Mapping**:
+  - Thay thế trường `category: str` bằng `category_id: Optional[int]` trong Entity, Model SQLAlchemy, Use Cases, và Schemas.
+  - Tạo quan hệ Foreign Key (`category_id` -> `categories.id`) và SQLAlchemy `relationship("CategoryModel")` để tự động load thông tin danh mục.
+- **Pagination & Response Updates**:
+  - Cập nhật `ListProductsUseCase` và `ProductRepository` trả về tuple `(items, total)` hỗ trợ phân trang chuẩn.
+  - Cập nhật `ProductResponse` schema hỗ trợ nhúng thông tin đối tượng `category` chi tiết.
 
-### 5. Testing
-- `tests/test_user_api.py`: Thêm các test case cho API người dùng với `pytest` và `httpx`.
+---
+
+### 3. Automated Tests
+- [`tests/test_category_api.py`](file:///d:/monitoring-tool/monitoring-test-batch/tests/test_category_api.py): Bổ sung toàn bộ unit/integration test cases cho các API danh mục (Tạo mới, trùng tên, Lấy chi tiết, Cập nhật, Xóa, Phân trang).
+- [`tests/test_product_api.py`](file:///d:/monitoring-tool/monitoring-test-batch/tests/test_product_api.py): Cập nhật lại các test suite sản phẩm phù hợp với cấu trúc `category_id`.
 
 ---
 
 ## 🧪 Testing Plan
-- [x] Đã chạy unit test cho API User (`tests/test_user_api.py`).
+- [x] Đã chạy toàn bộ test suite bằng `pytest`. Tất cả test cases trong `test_category_api.py` và `test_product_api.py` đều PASS.
 - [x] Kiểm tra thành công các trường hợp:
-  - `GET /api/v1/users` trả về danh sách rỗng ban đầu (Status 200).
-  - `GET /api/v1/users/999` khi không tồn tại ID (Status 404).
+  - `POST /api/v1/categories`: Tạo danh mục mới thành công & trả về 409 nếu trùng tên.
+  - `GET /api/v1/categories`: Phân trang danh mục chính xác (`items`, `total`).
+  - `POST /api/v1/products`: Tạo sản phẩm gắn với `category_id`.
+  - `GET /api/v1/products/{id}`: Trả về thông tin sản phẩm cùng đối tượng danh mục lồng nhau (`category`).
 
 ---
 
 ## ✅ Checklist
-- [x] Code tuân thủ kiến trúc Clean Architecture của dự án.
-- [x] Đã bao gồm Unit Tests.
-- [x] Không còn file tạm hoặc log dư thừa.
+- [x] Tuân thủ kiến trúc Clean Architecture của dự án.
+- [x] Đã bao gồm Unit & Integration Tests.
+- [x] Đã cập nhật và tương thích ngược/sửa đổi toàn bộ API cũ liên quan đến Product.
